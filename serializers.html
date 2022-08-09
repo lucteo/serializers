@@ -461,6 +461,12 @@ constraints between dynamic computations</h1>
 </ul></li>
 <li><a href="#introduction" id="toc-introduction"><span class="toc-section-number">2</span> Introduction<span></span></a></li>
 <li><a href="#motivation" id="toc-motivation"><span class="toc-section-number">3</span> Motivation<span></span></a></li>
+<li><a href="#synopsis" id="toc-synopsis"><span class="toc-section-number">4</span> Synopsis<span></span></a></li>
+<li><a href="#usage-examples" id="toc-usage-examples"><span class="toc-section-number">5</span> Usage examples<span></span></a></li>
+<li><a href="#design-considerations" id="toc-design-considerations"><span class="toc-section-number">6</span>
+Design considerations<span></span></a></li>
+<li><a href="#specification" id="toc-specification"><span class="toc-section-number">7</span> Specification<span></span></a></li>
+<li><a href="#bibliography" id="toc-bibliography"><span class="toc-section-number">8</span> References<span></span></a></li>
 </ul>
 </div>
 <h1 data-number="1" id="changes"><span class="header-section-number">1</span> Changes<a href="#changes" class="self-link"></a></h1>
@@ -469,10 +475,59 @@ constraints between dynamic computations</h1>
 <li>first revision</li>
 </ul>
 <h1 data-number="2" id="introduction"><span class="header-section-number">2</span> Introduction<a href="#introduction" class="self-link"></a></h1>
-<p>TODO</p>
+<p><span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span> is a major step towards
+structured concurrency. It defines building blocks that can be used to
+structure concurrent programs hierarchically, ensuring safety without
+any performance penalty. Senders are the right abstractions to deal with
+concurrency.</p>
+<p>Most of the algorithms defined in <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span> are focused on building chains
+of work. That is, to build <em>static</em> graphs of concurrent work;
+the actual work that needs to be performed needs to be known
+upfront.</p>
+<p>In practice, though, there is also “dynamic” work. This is work that
+we don’t fully know upfront. One example of “dynamic” work is the
+processing of <em>N</em> chunks of data, possible with different
+concurrency constraints, where <em>N</em> is a variable.</p>
+<p><span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span> provides
+<code class="sourceCode default">start_detached</code> and
+<code class="sourceCode default">ensure_started</code> to handle with
+work that doesn’t necessarily fall into “static” work category. But
+these primitives are not following structured concurrency primitives,
+and can be unsafe. <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span> fixes these
+problems with the introduction of
+<code class="sourceCode default">async_scope</code>. With this, we can
+dynamically launch concurrent work safely.</p>
+<p>However, these abstractions don’t allow us to establish constraints
+between different work chunks. For example, if multiple parts of an
+application (i.e., dynamic work) want to write data to a file, we can’t
+simply add a constraint so that maximum one computation can write to the
+file at any given type. As another example, we might have a limited
+number of resources, let’s say <em>N</em>, so maximum <em>N</em> threads
+can actively use these resources; again, there is no easy way to express
+this constraint.</p>
+<p>This paper aims at providing some abstractions that allow the users
+to start dynamic work with constraints associated to them. It provides 3
+abstractions: <code class="sourceCode default">serializer</code>,
+<code class="sourceCode default">n_serializer</code> and
+<code class="sourceCode default">rw_serializer</code>. These
+abstractions provide similar constraints to those found in mutexes,
+semaphores and read-write mutexes, but with applicability to
+senders.</p>
 <h1 data-number="3" id="motivation"><span class="header-section-number">3</span> Motivation<a href="#motivation" class="self-link"></a></h1>
 <p>TODO</p>
+<h1 data-number="4" id="synopsis"><span class="header-section-number">4</span> Synopsis<a href="#synopsis" class="self-link"></a></h1>
+<h1 data-number="5" id="usage-examples"><span class="header-section-number">5</span> Usage examples<a href="#usage-examples" class="self-link"></a></h1>
+<h1 data-number="6" id="design-considerations"><span class="header-section-number">6</span> Design considerations<a href="#design-considerations" class="self-link"></a></h1>
+<h1 data-number="7" id="specification"><span class="header-section-number">7</span> Specification<a href="#specification" class="self-link"></a></h1>
 <hr />
+<h1 data-number="8" id="bibliography"><span class="header-section-number">8</span> References<a href="#bibliography" class="self-link"></a></h1>
+<div id="refs" class="references csl-bib-body hanging-indent" role="doc-bibliography">
+<div id="ref-P2300R5" class="csl-entry" role="doc-biblioentry">
+[P2300R5] Michał Dominiak, Georgy Evtushenko, Lewis Baker, Lucian Radu
+Teodorescu, Lee Howes, Kirk Shoop, Michael Garland, Eric Niebler, Bryce
+Adelstein Lelbach. 2022-04-22. `std::execution`. <a href="https://wg21.link/p2300r5"><div class="csl-block">https://wg21.link/p2300r5</div></a>
+</div>
+</div>
 </div>
 </div>
 </body>
