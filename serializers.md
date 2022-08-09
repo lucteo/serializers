@@ -54,6 +54,128 @@ TODO
 Synopsis
 ========
 
+Depending on the outcome of [@D2519R0], the 3 proposed abstractions might look like:
+
+```c++
+// Similar to async_scope, but with the following constraint:
+//      maximum one given sender can be executed in parallel
+// Same idea as with mutexes, but using senders.
+struct serializer {
+    serializer();
+    ~serializer();
+    serializer(const serializer&) = delete;
+    serializer(serializer&&) = delete;
+    serializer& operator=(const serializer&) = delete;
+    serializer& operator=(serializer&&) = delete;
+
+    template <sender S>
+    void spawn(S&& snd);
+    template <sender S>
+    @_spawn-future-sender_@<S> spawn_future(S&& snd);
+
+    template <sender S>
+    @_nest-sender_@<S> nest(S&& snd);
+
+    [[nodiscard]]
+    @_on-empty-sender_@ on_empty() const noexcept;
+    
+    in_place_stop_source& get_stop_source() noexcept;
+    in_place_stop_token get_stop_token() const noexcept;
+    void request_stop() noexcept;
+};
+
+// Similar to async_scope/serializer, but with the following constraint:
+//      maximum N senders can be executed in parallel, where N is given to ctor
+// Same idea as with semaphores, but using senders.
+struct n_serializer {
+    explicit n_serializer(int max_parallel);
+    ~n_serializer();
+    n_serializer(const n_serializer&) = delete;
+    n_serializer(n_serializer&&) = delete;
+    n_serializer& operator=(const n_serializer&) = delete;
+    n_serializer& operator=(n_serializer&&) = delete;
+
+    template <sender S>
+    void spawn(S&& snd);
+    template <sender S>
+    @_spawn-future-sender_@<S> spawn_future(S&& snd);
+
+    template <sender S>
+    @_nest-sender_@<S> nest(S&& snd);
+
+    [[nodiscard]]
+    @_on-empty-sender_@ on_empty() const noexcept;
+    
+    in_place_stop_source& get_stop_source() noexcept;
+    in_place_stop_token get_stop_token() const noexcept;
+    void request_stop() noexcept;
+};
+
+// Similar to async_scope/serializer, but with the following constraints:
+//      - there are two types of senders: READ and WRITE
+//      - a WRITE sender cannot be executed in parallel with other WRITE or READ senders
+//      - multiple READ senders can be executed in parallel.
+// Same idea as with read-write mutexes, but using senders.
+struct rw_serializer {
+    rw_serializer();
+    ~rw_serializer();
+    rw_serializer(const rw_serializer&) = delete;
+    rw_serializer(rw_serializer&&) = delete;
+    rw_serializer& operator=(const rw_serializer&) = delete;
+    rw_serializer& operator=(rw_serializer&&) = delete;
+
+    struct reader {
+        ~reader();
+        reader(const reader&) = delete;
+        reader(reader&&) = delete;
+        reader& operator=(const reader&) = delete;
+        reader& operator=(reader&&) = delete;
+
+        template <sender S>
+        void spawn(S&& snd);
+        template <sender S>
+        @_spawn-future-sender_@<S> spawn_future(S&& snd);
+
+        template <sender S>
+        @_nest-sender_@<S> nest(S&& snd);
+
+    private:
+        reader(rw_serializer* parent);
+    };
+
+    struct writer {
+        ~writer();
+        writer(const writer&) = delete;
+        writer(writer&&) = delete;
+        writer& operator=(const writer&) = delete;
+        writer& operator=(writer&&) = delete;
+
+        template <sender S>
+        void spawn(S&& snd);
+        template <sender S>
+        @_spawn-future-sender_@<S> spawn_future(S&& snd);
+
+        template <sender S>
+        @_nest-sender_@<S> nest(S&& snd);
+
+    private:
+        writer(rw_serializer* parent);
+    };
+
+    reader& get_reader();
+    writer& get_writer();
+
+    [[nodiscard]]
+    @_on-empty-sender_@ on_empty() const noexcept;
+    
+    in_place_stop_source& get_stop_source() noexcept;
+    in_place_stop_token get_stop_token() const noexcept;
+    void request_stop() noexcept;
+};
+
+```
+
+
 Usage examples
 ==============
 
