@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="mpark/wg21" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <meta name="dcterms.date" content="2022-08-09" />
+  <meta name="dcterms.date" content="2022-08-11" />
   <title>serializers -- Adding constraints between dynamic
 computations</title>
   <style>
@@ -430,7 +430,7 @@ constraints between dynamic computations</h1>
   </tr>
   <tr>
     <td>Date:</td>
-    <td>2022-08-09</td>
+    <td>2022-08-11</td>
   </tr>
   <tr>
     <td style="vertical-align:top">Project:</td>
@@ -460,7 +460,15 @@ constraints between dynamic computations</h1>
 <li><a href="#r0" id="toc-r0"><span class="toc-section-number">1.1</span> R0<span></span></a></li>
 </ul></li>
 <li><a href="#introduction" id="toc-introduction"><span class="toc-section-number">2</span> Introduction<span></span></a></li>
-<li><a href="#motivation" id="toc-motivation"><span class="toc-section-number">3</span> Motivation<span></span></a></li>
+<li><a href="#motivation" id="toc-motivation"><span class="toc-section-number">3</span> Motivation<span></span></a>
+<ul>
+<li><a href="#adding-constraints-to-dynamic-work." id="toc-adding-constraints-to-dynamic-work."><span class="toc-section-number">3.1</span> Adding constraints to dynamic
+work.<span></span></a></li>
+<li><a href="#moving-away-from-the-world-of-blocking-primitives" id="toc-moving-away-from-the-world-of-blocking-primitives"><span class="toc-section-number">3.2</span> Moving away from the world of
+blocking primitives<span></span></a></li>
+<li><a href="#mutual-exclusion-is-an-important-concept" id="toc-mutual-exclusion-is-an-important-concept"><span class="toc-section-number">3.3</span> Mutual exclusion is an important
+concept<span></span></a></li>
+</ul></li>
 <li><a href="#synopsis" id="toc-synopsis"><span class="toc-section-number">4</span> Synopsis<span></span></a></li>
 <li><a href="#usage-examples" id="toc-usage-examples"><span class="toc-section-number">5</span> Usage examples<span></span></a></li>
 <li><a href="#design-considerations" id="toc-design-considerations"><span class="toc-section-number">6</span>
@@ -514,7 +522,77 @@ abstractions provide similar constraints to those found in mutexes,
 semaphores and read-write mutexes, but with applicability to
 senders.</p>
 <h1 data-number="3" id="motivation"><span class="header-section-number">3</span> Motivation<a href="#motivation" class="self-link"></a></h1>
-<p>TODO</p>
+<h2 data-number="3.1" id="adding-constraints-to-dynamic-work."><span class="header-section-number">3.1</span> Adding constraints to dynamic
+work.<a href="#adding-constraints-to-dynamic-work." class="self-link"></a></h2>
+<p>Virtually all threading libraries and frameworks support adding
+constraints between (dynamic) work that can be executed on multiple
+threads.</p>
+<p>Currently, both <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span> and <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span> lack
+abstractions that allow adding constraints to dynamic work. One can use
+<code class="sourceCode default">start_detached()</code> (with <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span>) and
+<code class="sourceCode default">async_scope::spawn()</code> (with <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>), to start
+dynamic work, but there is no way to add constraints between the dynamic
+computations that one wants to start.</p>
+<p>This paper adds abstractions that allow dynamically starting
+computations with simple constraints attached to them. Even though the
+constraints are simple, practice shows us that these are the most useful
+constraints for most of the programs.</p>
+<h2 data-number="3.2" id="moving-away-from-the-world-of-blocking-primitives"><span class="header-section-number">3.2</span> Moving away from the world of
+blocking primitives<a href="#moving-away-from-the-world-of-blocking-primitives" class="self-link"></a></h2>
+<p>With the new concurrency model introduced by <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span>, people would want to move from
+their legacy code-bases (with threads and locks) to this new model. To
+make this transition, among others, people would have to replace
+synchronization primitives with something equivalent.</p>
+<p>This paper provides abstractions that integrate well with senders /
+receivers framework that are equivalent to the following classic
+synchronization primitives:</p>
+<ul>
+<li>mutexes</li>
+<li>semaphores</li>
+<li>read/write mutexes</li>
+</ul>
+<p>Using the provided primitives, the transition from threads &amp;
+synchronization primitives to senders is easier.</p>
+<h2 data-number="3.3" id="mutual-exclusion-is-an-important-concept"><span class="header-section-number">3.3</span> Mutual exclusion is an
+important concept<a href="#mutual-exclusion-is-an-important-concept" class="self-link"></a></h2>
+<p>It is said that concurrency in software has its origins in the 1965
+Dijkstra’s paper <em>Solution of a problem in concurrent programming
+control</em> <span class="citation" data-cites="Dijkstra65">[<a href="#ref-Dijkstra65" role="doc-biblioref">Dijkstra65</a>]</span>. The
+paper provided the first solution to a concurrent problem, and the
+solution was what we now call a <em>mutex</em>. A way to ensure that
+multiple processes (machines in Dijkstra’s paper) have access to a
+resource (<em>critical section</em>, as Dijkstra names it) in such a way
+that the resource is accessed at most by one process. Mutexes are the
+first solution to concurrency issues, appearing at the same time with
+concurrency.</p>
+<p>But, despite being the oldest solution to concurrency problems, other
+solutions did not supersede it. Other synchronization primitives exist,
+but one can safely say that mutex is still the most frequently used. We
+can find mutexes in low-level threading frameworks, programming language
+constructs, threading libraries, etc. On the other hand, the use of
+semaphores (for example) is not as widespread.</p>
+<p>Programs also tend to use mutexes a lot. A search on <span class="citation" data-cites="codesearch">[<a href="#ref-codesearch" role="doc-biblioref">codesearch</a>]</span> yields that almost one in
+200 files contain <code class="sourceCode default">std::mutex</code>. As
+a comparison, the ratio for
+<code class="sourceCode default">std::thread</code> usage is 1:593, the
+ratio for <code class="sourceCode default">std::atomic</code> is 1:445,
+while the ratio for
+<code class="sourceCode default">std:condition_variable</code> is
+1:2700. The occurrence frequency of
+<code class="sourceCode default">std::mutex</code> is even greater than
+the occurrence frequency of
+<code class="sourceCode default">std::unordered_map</code> (which is
+about 1:212).</p>
+<p>Moreover, in our approaches of teaching concurrency, mutexes appear
+as one of the important synchronization primitives. Typically, the
+teaching materials (lectures/books/articles) describe threads, and
+intermediately after the problems caused by the lack of synchronization,
+and then it lists mutexes as the most common solution to this
+problem.</p>
+<p>For better or worse, the idea of a mutually exclusive critical
+section is deeply rooted in the minds of concurrent programmers. To have
+the senders/receivers model be a success, we should to provide an
+abstraction that is familiar to the existing programmers.</p>
 <h1 data-number="4" id="synopsis"><span class="header-section-number">4</span> Synopsis<a href="#synopsis" class="self-link"></a></h1>
 <p>Depending on the outcome of <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>, the 3
 proposed abstractions might look like:</p>
@@ -636,9 +714,16 @@ proposed abstractions might look like:</p>
 <h1 data-number="5" id="usage-examples"><span class="header-section-number">5</span> Usage examples<a href="#usage-examples" class="self-link"></a></h1>
 <h1 data-number="6" id="design-considerations"><span class="header-section-number">6</span> Design considerations<a href="#design-considerations" class="self-link"></a></h1>
 <h1 data-number="7" id="specification"><span class="header-section-number">7</span> Specification<a href="#specification" class="self-link"></a></h1>
-<hr />
 <h1 data-number="8" id="bibliography"><span class="header-section-number">8</span> References<a href="#bibliography" class="self-link"></a></h1>
 <div id="refs" class="references csl-bib-body hanging-indent" role="doc-bibliography">
+<div id="ref-codesearch" class="csl-entry" role="doc-biblioentry">
+[codesearch] Andrew Tomazos. Code search engine website. <a href="https://codesearch.isocpp.org"><div class="csl-block">https://codesearch.isocpp.org</div></a>
+</div>
+<div id="ref-Dijkstra65" class="csl-entry" role="doc-biblioentry">
+[Dijkstra65] E. W. Dijkstra. 1965. <em>Solution of a problem in
+concurrent programming control</em>. Communications of the ACM,
+September 1965.
+</div>
 <div id="ref-P2300R5" class="csl-entry" role="doc-biblioentry">
 [P2300R5] Michał Dominiak, Georgy Evtushenko, Lewis Baker, Lucian Radu
 Teodorescu, Lee Howes, Kirk Shoop, Michael Garland, Eric Niebler, Bryce
