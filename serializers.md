@@ -175,7 +175,50 @@ auto download(url_t url) {
 
 ```
 
+## Read/write access to a resource
 
+Let's assume we have a game for which we load data dynamically as the player explore the game world.
+Once the game data is loaded it is immutable.
+We might have multiple parts of the game reading the game data at the same time without any safety issue, but we cannot write the game data in parallel with any reads (or other writes).
+
+In the classic concurrency model this would be solved with a read-write mutex (shared mutex).
+With this paper, we can use `rw_serializer` to apply the same idea to senders.
+
+```c++
+using namespace std::execution;
+
+class game_data_t;
+void load_data_for_area(area_id id, game_data_t& game_data);
+void unprotected_render(const game_data_t& game_data);
+
+game_data_t game_data;
+
+rw_serializer game_data_ser;
+system_context ctx;
+
+void start_load_area(area_id id) {
+  auto protected_work = [id] {
+    // exclusive access to game_data while in this scope
+    load_data_for_area(id, game_data);
+  };
+
+  scheduler auto sch = ctx.scheduler();
+  game_data_ser.get_writer().spawn(on(sch, just() | then(protected_work)));
+}
+
+auto render() {
+  auto protected_work = [] {
+    // data doesn't change while rendering the scene
+    unprotected_render(game_data);
+  };
+  scheduler auto sch = ctx.scheduler();
+  return game_data_ser.get_reader().spawn_future(on(sch, just() | then(protected_work)));
+}
+
+auto spawn_enemies() {
+  // similar to render()
+}
+```
 
 Synopsis
 ========
