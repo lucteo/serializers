@@ -265,6 +265,17 @@ struct rw_serializer {
 Design considerations
 =====================
 
+Comparison with other models
+============================
+
+## Comparison with mutexes
+
+## Comparison with P2300 model
+
+## Comparison with `async_scope`
+
+## Comparison with libunifex's `async_mutex`
+
 Specification
 =============
 
