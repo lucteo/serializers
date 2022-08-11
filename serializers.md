@@ -123,8 +123,8 @@ system_context ctx;
 
 // can be called in parallel from multiple threads
 // exits immediately
-void trigger_save(const game_state& state) {
-  auto do_save = [] {
+void trigger_save(game_state state) {
+  auto do_save = [state] {
     // this is going to be serialized; at most one thread in this scope, at a given time
     game_save_process saver = ...;
     saver.save(state);
@@ -134,6 +134,46 @@ void trigger_save(const game_state& state) {
 }
 ```
 
+## Limiting the maximum number of parallel accesses
+
+Let's assume that we have an application that tries to download multiple files on an embedded device with limited bandwidth.
+Although we can download multiple files in parallel, but because of the limited bandwidth, it may not be wort to download too many files at the same time.
+In addition to that, let's assume that creating a connection is a complex process, and we want to limit the number of connections we created.
+
+Thus, we have a problem in which we have a limited number of connections we can use.
+In classic concurrent model, one can use a counting semaphore to limit the number of connections that can be used at a given time.
+With this paper, one can use an `n_serializer`:
+
+```c++
+using namespace std::execution;
+
+constexpr int num_parallel_conns = 5;
+vector<connection_t> connections = ...;           // assume we have 5 connections
+using conn_handle_t = ...; // handle to a connection_t from the vector; dtor will mark the connection as free
+
+n_serializer connections_ser{num_parallel_conns};
+system_context ctx;
+
+auto download(url_t url) {
+  auto protected_work = [url] {
+    // At most `num_parallel_conns` threads will enter this region
+
+    // Get a free connection (guaranteed to have one)
+    conn_handle_t conn = acquire_free_connection(connections);
+    // Start downloading on that connection
+    return just(conn)
+         | let_value([url](conn_handle_t conn) {
+            return conn.download(url);
+         });
+    // When the handle is destroyed, the connection will go back in the pool as a free connection
+  };
+
+  // Spawn the work and return a sender that is triggered when the download completes
+  scheduler auto sch = ctx.scheduler();
+  return connections_ser.spawn_future(on(sch, just() | then(protected_work)));
+}
+
+```
 
 
 
