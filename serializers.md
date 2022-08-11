@@ -49,7 +49,53 @@ These abstractions provide similar constraints to those found in mutexes, semaph
 Motivation
 ==========
 
-TODO
+## Adding constraints to dynamic work.
+
+Virtually all threading libraries and frameworks support adding constraints between (dynamic) work that can be executed on multiple threads.
+
+Currently, both [@P2300R5] and [@D2519R0] lack abstractions that allow adding constraints to dynamic work.
+One can use `start_detached()` (with [@P2300R5]) and `async_scope::spawn()` (with [@D2519R0]), to start dynamic work, but there is no way to add constraints between the dynamic computations that one wants to start.
+
+This paper adds abstractions that allow dynamically starting computations with simple constraints attached to them.
+Even though the constraints are simple, practice shows us that these are the most useful constraints for most of the programs.
+
+
+## Moving away from the world of blocking primitives
+
+With the new concurrency model introduced by [@P2300R5], people would want to move from their legacy code-bases (with threads and locks) to this new model.
+To make this transition, among others, people would have to replace synchronization primitives with something equivalent.
+
+This paper provides abstractions that integrate well with senders / receivers framework that are equivalent to the following classic synchronization primitives:
+
+* mutexes
+* semaphores
+* read/write mutexes
+
+Using the provided primitives, the transition from threads & synchronization primitives to senders is easier.
+
+
+## Mutual exclusion is an important concept
+
+It is said that concurrency in software has its origins in the 1965 Dijkstra's paper *Solution of a problem in concurrent programming control* [@Dijkstra65].
+The paper provided the first solution to a concurrent problem, and the solution was what we now call a *mutex*.
+A way to ensure that multiple processes (machines in Dijkstra's paper) have access to a resource (*critical section*, as Dijkstra names it) in such a way that the resource is accessed at most by one process.
+Mutexes are the first solution to concurrency issues, appearing at the same time with concurrency.
+
+But, despite being the oldest solution to concurrency problems, other solutions did not supersede it.
+Other synchronization primitives exist, but one can safely say that mutex is still the most frequently used.
+We can find mutexes in low-level threading frameworks, programming language constructs, threading libraries, etc. On the other hand, the use of semaphores (for example) is not as widespread.
+
+Programs also tend to use mutexes a lot.
+A search on [@codesearch] yields that almost one in 200 files contain `std::mutex`.
+As a comparison, the ratio for `std::thread` usage is 1:593, the ratio for `std::atomic` is 1:445, while the ratio for `std:condition_variable` is 1:2700.
+The occurrence frequency of `std::mutex` is even greater than the occurrence frequency of `std::unordered_map` (which is about 1:212).
+
+Moreover, in our approaches of teaching concurrency, mutexes appear as one of the important synchronization primitives.
+Typically, the teaching materials (lectures/books/articles) describe threads, and intermediately after the problems caused by the lack of synchronization, and then it lists mutexes as the most common solution to this problem.
+
+For better or worse, the idea of a mutually exclusive critical section is deeply rooted in the minds of concurrent programmers.
+To have the senders/receivers model be a success, we should to provide an abstraction that is familiar to the existing programmers.
+
 
 Synopsis
 ========
@@ -185,4 +231,24 @@ Design considerations
 Specification
 =============
 
+---
+references:
+  - id: Dijkstra65
+    citation-label: Dijkstra65
+    type: book
+    title: "Solution of a problem in concurrent programming control"
+    author:
+      - family: Dijkstra
+        given: E. W.
+    publisher: Communications of the ACM, September 1965
+    issued:
+      year: 1965
+      month: September
+  - id: codesearch
+    citation-label: codesearch
+    title: "Code search engine website"
+    author:
+      - family: Tomazos
+        given: Andrew
+    url: https://codesearch.isocpp.org
 ---
