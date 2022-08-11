@@ -475,6 +475,8 @@ concept<span></span></a></li>
 resource<span></span></a></li>
 <li><a href="#limiting-the-maximum-number-of-parallel-accesses" id="toc-limiting-the-maximum-number-of-parallel-accesses"><span class="toc-section-number">4.2</span> Limiting the maximum number of
 parallel accesses<span></span></a></li>
+<li><a href="#readwrite-access-to-a-resource" id="toc-readwrite-access-to-a-resource"><span class="toc-section-number">4.3</span> Read/write access to a
+resource<span></span></a></li>
 </ul></li>
 <li><a href="#synopsis" id="toc-synopsis"><span class="toc-section-number">5</span> Synopsis<span></span></a></li>
 <li><a href="#design-considerations" id="toc-design-considerations"><span class="toc-section-number">6</span>
@@ -686,124 +688,168 @@ at a given time. With this paper, one can use an
 <span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  scheduler <span class="kw">auto</span> sch <span class="op">=</span> ctx<span class="op">.</span>scheduler<span class="op">()</span>;</span>
 <span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> connections_ser<span class="op">.</span>spawn_future<span class="op">(</span>on<span class="op">(</span>sch, just<span class="op">()</span> <span class="op">|</span> then<span class="op">(</span>protected_work<span class="op">)))</span>;</span>
 <span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 data-number="4.3" id="readwrite-access-to-a-resource"><span class="header-section-number">4.3</span> Read/write access to a
+resource<a href="#readwrite-access-to-a-resource" class="self-link"></a></h2>
+<p>Let’s assume we have a game for which we load data dynamically as the
+player explore the game world. Once the game data is loaded it is
+immutable. We might have multiple parts of the game reading the game
+data at the same time without any safety issue, but we cannot write the
+game data in parallel with any reads (or other writes).</p>
+<p>In the classic concurrency model this would be solved with a
+read-write mutex (shared mutex). With this paper, we can use
+<code class="sourceCode default">rw_serializer</code> to apply the same
+idea to senders.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">using</span> <span class="kw">namespace</span> std<span class="op">::</span>execution;</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> game_data_t;</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> load_data_for_area<span class="op">(</span>area_id id, game_data_t<span class="op">&amp;</span> game_data<span class="op">)</span>;</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> unprotected_render<span class="op">(</span><span class="kw">const</span> game_data_t<span class="op">&amp;</span> game_data<span class="op">)</span>;</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>game_data_t game_data;</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>rw_serializer game_data_ser;</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>system_context ctx;</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> start_load_area<span class="op">(</span>area_id id<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> protected_work <span class="op">=</span> <span class="op">[</span>id<span class="op">]</span> <span class="op">{</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">// exclusive access to game_data while in this scope</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    load_data_for_area<span class="op">(</span>id, game_data<span class="op">)</span>;</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span>;</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  scheduler <span class="kw">auto</span> sch <span class="op">=</span> ctx<span class="op">.</span>scheduler<span class="op">()</span>;</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>  game_data_ser<span class="op">.</span>get_writer<span class="op">().</span>spawn<span class="op">(</span>on<span class="op">(</span>sch, just<span class="op">()</span> <span class="op">|</span> then<span class="op">(</span>protected_work<span class="op">)))</span>;</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> render<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> protected_work <span class="op">=</span> <span class="op">[]</span> <span class="op">{</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">// data doesn&#39;t change while rendering the scene</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    unprotected_render<span class="op">(</span>game_data<span class="op">)</span>;</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span>;</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>  scheduler <span class="kw">auto</span> sch <span class="op">=</span> ctx<span class="op">.</span>scheduler<span class="op">()</span>;</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> game_data_ser<span class="op">.</span>get_reader<span class="op">().</span>spawn_future<span class="op">(</span>on<span class="op">(</span>sch, just<span class="op">()</span> <span class="op">|</span> then<span class="op">(</span>protected_work<span class="op">)))</span>;</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> spawn_enemies<span class="op">()</span> <span class="op">{</span></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="co">// similar to render()</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 <h1 data-number="5" id="synopsis"><span class="header-section-number">5</span> Synopsis<a href="#synopsis" class="self-link"></a></h1>
 <p>Depending on the outcome of <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>, the 3
 proposed abstractions might look like:</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Similar to async_scope, but with the following constraint:</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">//      maximum one given sender can be executed in parallel</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Same idea as with mutexes, but using senders.</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> serializer <span class="op">{</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">()</span>;</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>serializer<span class="op">()</span>;</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">(</span><span class="kw">const</span> serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">(</span>serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">[[</span><span class="at">nodiscard</span><span class="op">]]</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    <em>on-empty-sender</em> on_empty<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    in_place_stop_source<span class="op">&amp;</span> get_stop_source<span class="op">()</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    in_place_stop_token get_stop_token<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="co">// Similar to async_scope/serializer, but with the following constraint:</span></span>
-<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="co">//      maximum N senders can be executed in parallel, where N is given to ctor</span></span>
-<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="co">// Same idea as with semaphores, but using senders.</span></span>
-<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> n_serializer <span class="op">{</span></span>
-<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">explicit</span> n_serializer<span class="op">(</span><span class="dt">int</span> max_parallel<span class="op">)</span>;</span>
-<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>n_serializer<span class="op">()</span>;</span>
-<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">(</span><span class="kw">const</span> n_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">(</span>n_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> n_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>n_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">[[</span><span class="at">nodiscard</span><span class="op">]]</span></span>
-<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>    <em>on-empty-sender</em> on_empty<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>    in_place_stop_source<span class="op">&amp;</span> get_stop_source<span class="op">()</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>    in_place_stop_token get_stop_token<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
-<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a><span class="co">// Similar to async_scope/serializer, but with the following constraints:</span></span>
-<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a><span class="co">//      - there are two types of senders: READ and WRITE</span></span>
-<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a><span class="co">//      - a WRITE sender cannot be executed in parallel with other WRITE or READ senders</span></span>
-<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a><span class="co">//      - multiple READ senders can be executed in parallel.</span></span>
-<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a><span class="co">// Same idea as with read-write mutexes, but using senders.</span></span>
-<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> rw_serializer <span class="op">{</span></span>
-<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">()</span>;</span>
-<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>rw_serializer<span class="op">()</span>;</span>
-<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">(</span><span class="kw">const</span> rw_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">(</span>rw_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-65"><a href="#cb3-65" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> rw_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-66"><a href="#cb3-66" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>rw_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-67"><a href="#cb3-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-68"><a href="#cb3-68" aria-hidden="true" tabindex="-1"></a>    <span class="kw">struct</span> reader <span class="op">{</span></span>
-<span id="cb3-69"><a href="#cb3-69" aria-hidden="true" tabindex="-1"></a>        <span class="op">~</span>reader<span class="op">()</span>;</span>
-<span id="cb3-70"><a href="#cb3-70" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">(</span><span class="kw">const</span> reader<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-71"><a href="#cb3-71" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">(</span>reader<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-72"><a href="#cb3-72" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> reader<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-73"><a href="#cb3-73" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>reader<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-74"><a href="#cb3-74" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-75"><a href="#cb3-75" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-76"><a href="#cb3-76" aria-hidden="true" tabindex="-1"></a>        <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-77"><a href="#cb3-77" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-78"><a href="#cb3-78" aria-hidden="true" tabindex="-1"></a>        <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-79"><a href="#cb3-79" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-80"><a href="#cb3-80" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-81"><a href="#cb3-81" aria-hidden="true" tabindex="-1"></a>        <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-82"><a href="#cb3-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-83"><a href="#cb3-83" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span><span class="op">:</span></span>
-<span id="cb3-84"><a href="#cb3-84" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">(</span>rw_serializer<span class="op">*</span> parent<span class="op">)</span>;</span>
-<span id="cb3-85"><a href="#cb3-85" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>;</span>
-<span id="cb3-86"><a href="#cb3-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-87"><a href="#cb3-87" aria-hidden="true" tabindex="-1"></a>    <span class="kw">struct</span> writer <span class="op">{</span></span>
-<span id="cb3-88"><a href="#cb3-88" aria-hidden="true" tabindex="-1"></a>        <span class="op">~</span>writer<span class="op">()</span>;</span>
-<span id="cb3-89"><a href="#cb3-89" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">(</span><span class="kw">const</span> writer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-90"><a href="#cb3-90" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">(</span>writer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-91"><a href="#cb3-91" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> writer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-92"><a href="#cb3-92" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>writer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
-<span id="cb3-93"><a href="#cb3-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-94"><a href="#cb3-94" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-95"><a href="#cb3-95" aria-hidden="true" tabindex="-1"></a>        <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-96"><a href="#cb3-96" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-97"><a href="#cb3-97" aria-hidden="true" tabindex="-1"></a>        <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-98"><a href="#cb3-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-99"><a href="#cb3-99" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
-<span id="cb3-100"><a href="#cb3-100" aria-hidden="true" tabindex="-1"></a>        <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
-<span id="cb3-101"><a href="#cb3-101" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-102"><a href="#cb3-102" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span><span class="op">:</span></span>
-<span id="cb3-103"><a href="#cb3-103" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">(</span>rw_serializer<span class="op">*</span> parent<span class="op">)</span>;</span>
-<span id="cb3-104"><a href="#cb3-104" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>;</span>
-<span id="cb3-105"><a href="#cb3-105" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-106"><a href="#cb3-106" aria-hidden="true" tabindex="-1"></a>    reader<span class="op">&amp;</span> get_reader<span class="op">()</span>;</span>
-<span id="cb3-107"><a href="#cb3-107" aria-hidden="true" tabindex="-1"></a>    writer<span class="op">&amp;</span> get_writer<span class="op">()</span>;</span>
-<span id="cb3-108"><a href="#cb3-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-109"><a href="#cb3-109" aria-hidden="true" tabindex="-1"></a>    <span class="op">[[</span><span class="at">nodiscard</span><span class="op">]]</span></span>
-<span id="cb3-110"><a href="#cb3-110" aria-hidden="true" tabindex="-1"></a>    <em>on-empty-sender</em> on_empty<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-111"><a href="#cb3-111" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb3-112"><a href="#cb3-112" aria-hidden="true" tabindex="-1"></a>    in_place_stop_source<span class="op">&amp;</span> get_stop_source<span class="op">()</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-113"><a href="#cb3-113" aria-hidden="true" tabindex="-1"></a>    in_place_stop_token get_stop_token<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-114"><a href="#cb3-114" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
-<span id="cb3-115"><a href="#cb3-115" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Similar to async_scope, but with the following constraint:</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co">//      maximum one given sender can be executed in parallel</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Same idea as with mutexes, but using senders.</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> serializer <span class="op">{</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">()</span>;</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>serializer<span class="op">()</span>;</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">(</span><span class="kw">const</span> serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">(</span>serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">[[</span><span class="at">nodiscard</span><span class="op">]]</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <em>on-empty-sender</em> on_empty<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    in_place_stop_source<span class="op">&amp;</span> get_stop_source<span class="op">()</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>    in_place_stop_token get_stop_token<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a><span class="co">// Similar to async_scope/serializer, but with the following constraint:</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co">//      maximum N senders can be executed in parallel, where N is given to ctor</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="co">// Same idea as with semaphores, but using senders.</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> n_serializer <span class="op">{</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">explicit</span> n_serializer<span class="op">(</span><span class="dt">int</span> max_parallel<span class="op">)</span>;</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>n_serializer<span class="op">()</span>;</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">(</span><span class="kw">const</span> n_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">(</span>n_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> n_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    n_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>n_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>    <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>    <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>    <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">[[</span><span class="at">nodiscard</span><span class="op">]]</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>    <em>on-empty-sender</em> on_empty<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>    in_place_stop_source<span class="op">&amp;</span> get_stop_source<span class="op">()</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>    in_place_stop_token get_stop_token<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a><span class="co">// Similar to async_scope/serializer, but with the following constraints:</span></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a><span class="co">//      - there are two types of senders: READ and WRITE</span></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a><span class="co">//      - a WRITE sender cannot be executed in parallel with other WRITE or READ senders</span></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a><span class="co">//      - multiple READ senders can be executed in parallel.</span></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a><span class="co">// Same idea as with read-write mutexes, but using senders.</span></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> rw_serializer <span class="op">{</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">()</span>;</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>    <span class="op">~</span>rw_serializer<span class="op">()</span>;</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">(</span><span class="kw">const</span> rw_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">(</span>rw_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> rw_serializer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>    rw_serializer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>rw_serializer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>    <span class="kw">struct</span> reader <span class="op">{</span></span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>        <span class="op">~</span>reader<span class="op">()</span>;</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">(</span><span class="kw">const</span> reader<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">(</span>reader<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> reader<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>reader<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>        <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>        <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>        <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span><span class="op">:</span></span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>        reader<span class="op">(</span>rw_serializer<span class="op">*</span> parent<span class="op">)</span>;</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>;</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>    <span class="kw">struct</span> writer <span class="op">{</span></span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>        <span class="op">~</span>writer<span class="op">()</span>;</span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">(</span><span class="kw">const</span> writer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">(</span>writer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span><span class="kw">const</span> writer<span class="op">&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">&amp;</span> <span class="kw">operator</span><span class="op">=(</span>writer<span class="op">&amp;&amp;)</span> <span class="op">=</span> <span class="kw">delete</span>;</span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        <span class="dt">void</span> spawn<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>        <em>spawn-future-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> spawn_future<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>        <span class="kw">template</span> <span class="op">&lt;</span>sender S<span class="op">&gt;</span></span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>        <em>nest-sender</em><span class="op">&lt;</span>S<span class="op">&gt;</span> nest<span class="op">(</span>S<span class="op">&amp;&amp;</span> snd<span class="op">)</span>;</span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>    <span class="kw">private</span><span class="op">:</span></span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>        writer<span class="op">(</span>rw_serializer<span class="op">*</span> parent<span class="op">)</span>;</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>;</span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>    reader<span class="op">&amp;</span> get_reader<span class="op">()</span>;</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>    writer<span class="op">&amp;</span> get_writer<span class="op">()</span>;</span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>    <span class="op">[[</span><span class="at">nodiscard</span><span class="op">]]</span></span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>    <em>on-empty-sender</em> on_empty<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>    in_place_stop_source<span class="op">&amp;</span> get_stop_source<span class="op">()</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>    in_place_stop_token get_stop_token<span class="op">()</span> <span class="kw">const</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
 <h1 data-number="6" id="design-considerations"><span class="header-section-number">6</span> Design considerations<a href="#design-considerations" class="self-link"></a></h1>
 <h1 data-number="7" id="comparison-with-other-models"><span class="header-section-number">7</span> Comparison with other models<a href="#comparison-with-other-models" class="self-link"></a></h1>
 <h2 data-number="7.1" id="comparison-with-mutexes"><span class="header-section-number">7.1</span> Comparison with mutexes<a href="#comparison-with-mutexes" class="self-link"></a></h2>
