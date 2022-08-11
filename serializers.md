@@ -97,6 +97,46 @@ For better or worse, the idea of a mutually exclusive critical section is deeply
 To have the senders/receivers model be a success, we should to provide an abstraction that is familiar to the existing programmers.
 
 
+Usage examples
+==============
+
+## Mutual exclusion while accessing a resource
+
+Let's assume that we are building a game.
+In this game, we need to save the state of the game at certain points, based on multiple triggers.
+The triggers are independent of each-other, and we can imagine multiple triggers will activate at the same time.
+
+The functionality that saves the state of the game doesn't make sense to be called in parallel by multiple threads.
+Thus, after one trigger starts the saving of the state, other triggers cannot start another save process.
+The process for saving the state corresponding to the second trigger must start only after the first saving of the state process completes.
+
+In the classical concurrency model with threads and locks, we would add a mutex around the process of saving the game state.
+This is the classic example of using a mutex.
+
+With this paper, one can use senders and achieve mutual exclusion:
+
+```c++
+using namespace std::execution;
+
+serializer save_ser;
+system_context ctx;
+
+// can be called in parallel from multiple threads
+// exits immediately
+void trigger_save(const game_state& state) {
+  auto do_save = [] {
+    // this is going to be serialized; at most one thread in this scope, at a given time
+    game_save_process saver = ...;
+    saver.save(state);
+  };
+  scheduler auto sch = ctx.scheduler();
+  save_ser.spawn(on(sch, just() | then(do_save)));
+}
+```
+
+
+
+
 Synopsis
 ========
 
@@ -221,9 +261,6 @@ struct rw_serializer {
 
 ```
 
-
-Usage examples
-==============
 
 Design considerations
 =====================
