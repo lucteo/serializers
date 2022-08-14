@@ -426,6 +426,16 @@ This is because `rw_serializer` can accept two types of computations.
 
 Keeping the two abstractions in the same paper allows us to consider the enqueueing of dynamic computations with constraints in a more general form.
 
+## Number of resources protected by an `n_serializer` is given to the constructor
+
+## `rw_serializer` with two sub-objects
+
+## Concepts vs. concrete classes
+
+## `nest` as a basis for `spawn` and `spawn_future`
+
+## Use of CPOs
+
 
 Comparison with other models
 ============================
