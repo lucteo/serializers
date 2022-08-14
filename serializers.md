@@ -446,6 +446,30 @@ Comparison with other models
 
 ## Comparison with `async_scope`
 
+Serializers, have the following similarities to `async_scope` ([@D2519R0]):
+
+* they target dynamic computations (as opposed to static computations, which is the primary focus of [@P2300R5])
+* they allow *spawning* new dynamic work
+* they allow detecting whether there is no enqueued dynamic work
+* they allow cancelling the work that is already enqueued
+* they allow structured handling of dynamic work
+
+Looking at the above points, one might say that they are designed for the same goal.
+However, the difference lies in the constraints imposed on the computations that are being enqueued to these abstractions, as shown by the following table:
+
+| Abstraction     | Maximum level of parallelism                                                                          | Constraints description                                                                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `async_scope`   | infinite                                                                                              | no constraints are added to the enqueued computations                                                                                                                       |
+| `serializer`    | 1                                                                                                     | at most one computation can be executed at a given time                                                                                                                     |
+| `n_serializer`  | *N*                                                                                                   | at most *N* computations can be executed at a given time                                                                                                                    |
+| `rw_serializer` | infinite for *read* computations (in the absence of *write* computations); 1 for *write* computations | this puts constraints between *write* computations and the rest of the computations enqueued; there are no constraints between *read* tasks in the absence of *write* tasks |
+
+According to the above table, one can look at `async_scope` as a particular case of a serializer, in which no constraints are put on the computations that are enqueued.
+Actually, for all practical purposes, `async_scope` has the same semantics as an `n_serilizer` object constructed with the largest integer possible (if we assume we can never reach the limit of how many computations can be enqueued).
+
+Thus, serializers are an extension of `async_scope`.
+
+
 ## Comparison with libunifex's `async_mutex`
 
 Specification
@@ -454,27 +478,27 @@ Specification
 ---
 references:
   - id: Dijkstra65
-    citation-label: Dijkstra65
-    type: book
-    title: "Solution of a problem in concurrent programming control"
-    author:
-      - family: Dijkstra
-        given: E. W.
-    publisher: Communications of the ACM, September 1965
-    issued:
-      year: 1965
-      month: September
+	citation-label: Dijkstra65
+	type: book
+	title: "Solution of a problem in concurrent programming control"
+	author:
+	  - family: Dijkstra
+		given: E. W.
+	publisher: Communications of the ACM, September 1965
+	issued:
+	  year: 1965
+	  month: September
   - id: codesearch
-    citation-label: codesearch
-    title: "Code search engine website"
-    author:
-      - family: Tomazos
-        given: Andrew
-    url: https://codesearch.isocpp.org
+	citation-label: codesearch
+	title: "Code search engine website"
+	author:
+	  - family: Tomazos
+		given: Andrew
+	url: https://codesearch.isocpp.org
   - id: libunifex
-    citation-label: libunifex
-    title: "libunifex: Unified Executors"
-    author:
-      - family: Facebook
-    url: https://github.com/facebookexperimental/libunifex
+	citation-label: libunifex
+	title: "libunifex: Unified Executors"
+	author:
+	  - family: Facebook
+	url: https://github.com/facebookexperimental/libunifex
 ---
