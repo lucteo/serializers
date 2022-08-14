@@ -400,7 +400,31 @@ One reason for this is that we cannot destruct the serializer object while there
 
 And, the same way that `asynsc_scope` requires cancellation, we require cancellation support for serializers, for the same reasons.
 
+Please note that, one important point of considering `async_scope` as the starting point for the serializers work is the fact that they provide a structured way to work with dynamic computations.
+See more discussion of about this aspect in [@D2519R0].
+
 See also [Comparison with `async_scope`]
+
+
+## Including `n_serializer` and `rw_serializer`
+
+One might want to separate into separate papers the 3 abstractions proposed here: `serializer`, `n_serializer` and `rw_serializer`.
+While there are reasons to do that (incremental progress works well with C\+\+ standard committee), there are also reasons to consider all 3 abstractions into the same proposal.
+
+First, these abstractions correspond to the main ways of synchronization in the classical threading world; treating them together seems to make sense.
+They provide tools to solve one type of problem.
+
+While there are differences between them, the commonalities seem more important.
+
+If we look at `serializer` and `n_serializer` we realise that they are extremely close.
+Actually, a `serializer` object behaves the same as an `n_serializer` object constructed with a count of `1`.
+Thus, `serializer` is a special case of `n_serializer`.
+
+Furthermore, an `rw_serializer` can be thought of as a generalisation of a simple `serializer` (all computations given to it are *write* computations).
+But, in this case, the interfaces of the two classes need to be different.
+This is because `rw_serializer` can accept two types of computations.
+
+Keeping the two abstractions in the same paper allows us to consider the enqueueing of dynamic computations with constraints in a more general form.
 
 
 Comparison with other models
