@@ -486,6 +486,9 @@ Design considerations<span></span></a>
 abstraction<span></span></a></li>
 <li><a href="#interface-similar-to-async_scope" id="toc-interface-similar-to-async_scope"><span class="toc-section-number">6.2</span> Interface similar to
 <code class="sourceCode default">async_scope</code><span></span></a></li>
+<li><a href="#including-n_serializer-and-rw_serializer" id="toc-including-n_serializer-and-rw_serializer"><span class="toc-section-number">6.3</span> Including
+<code class="sourceCode default">n_serializer</code> and
+<code class="sourceCode default">rw_serializer</code><span></span></a></li>
 </ul></li>
 <li><a href="#comparison-with-other-models" id="toc-comparison-with-other-models"><span class="toc-section-number">7</span> Comparison with other
 models<span></span></a>
@@ -938,8 +941,47 @@ serializer object while there is still work within it.</p>
 <code class="sourceCode default">asynsc_scope</code> requires
 cancellation, we require cancellation support for serializers, for the
 same reasons.</p>
+<p>Please note that, one important point of considering
+<code class="sourceCode default">async_scope</code> as the starting
+point for the serializers work is the fact that they provide a
+structured way to work with dynamic computations. See more discussion of
+about this aspect in <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>.</p>
 <p>See also <a href="#comparison-with-async_scope">Comparison with
 <code class="sourceCode default">async_scope</code></a></p>
+<h2 data-number="6.3" id="including-n_serializer-and-rw_serializer"><span class="header-section-number">6.3</span> Including
+<code class="sourceCode default">n_serializer</code> and
+<code class="sourceCode default">rw_serializer</code><a href="#including-n_serializer-and-rw_serializer" class="self-link"></a></h2>
+<p>One might want to separate into separate papers the 3 abstractions
+proposed here: <code class="sourceCode default">serializer</code>,
+<code class="sourceCode default">n_serializer</code> and
+<code class="sourceCode default">rw_serializer</code>. While there are
+reasons to do that (incremental progress works well with C++ standard
+committee), there are also reasons to consider all 3 abstractions into
+the same proposal.</p>
+<p>First, these abstractions correspond to the main ways of
+synchronization in the classical threading world; treating them together
+seems to make sense. They provide tools to solve one type of
+problem.</p>
+<p>While there are differences between them, the commonalities seem more
+important.</p>
+<p>If we look at <code class="sourceCode default">serializer</code> and
+<code class="sourceCode default">n_serializer</code> we realise that
+they are extremely close. Actually, a
+<code class="sourceCode default">serializer</code> object behaves the
+same as an <code class="sourceCode default">n_serializer</code> object
+constructed with a count of <code class="sourceCode default">1</code>.
+Thus, <code class="sourceCode default">serializer</code> is a special
+case of <code class="sourceCode default">n_serializer</code>.</p>
+<p>Furthermore, an <code class="sourceCode default">rw_serializer</code>
+can be thought of as a generalisation of a simple
+<code class="sourceCode default">serializer</code> (all computations
+given to it are <em>write</em> computations). But, in this case, the
+interfaces of the two classes need to be different. This is because
+<code class="sourceCode default">rw_serializer</code> can accept two
+types of computations.</p>
+<p>Keeping the two abstractions in the same paper allows us to consider
+the enqueueing of dynamic computations with constraints in a more
+general form.</p>
 <h1 data-number="7" id="comparison-with-other-models"><span class="header-section-number">7</span> Comparison with other models<a href="#comparison-with-other-models" class="self-link"></a></h1>
 <h2 data-number="7.1" id="comparison-with-mutexes"><span class="header-section-number">7.1</span> Comparison with mutexes<a href="#comparison-with-mutexes" class="self-link"></a></h2>
 <h2 data-number="7.2" id="comparison-with-p2300-model"><span class="header-section-number">7.2</span> Comparison with P2300 model<a href="#comparison-with-p2300-model" class="self-link"></a></h2>
