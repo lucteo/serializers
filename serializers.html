@@ -1012,6 +1012,75 @@ sub-objects<a href="#rw_serializer-with-two-sub-objects" class="self-link"></a><
 <h2 data-number="7.2" id="comparison-with-p2300-model"><span class="header-section-number">7.2</span> Comparison with P2300 model<a href="#comparison-with-p2300-model" class="self-link"></a></h2>
 <h2 data-number="7.3" id="comparison-with-async_scope"><span class="header-section-number">7.3</span> Comparison with
 <code class="sourceCode default">async_scope</code><a href="#comparison-with-async_scope" class="self-link"></a></h2>
+<p>Serializers, have the following similarities to
+<code class="sourceCode default">async_scope</code> (<span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>):</p>
+<ul>
+<li>they target dynamic computations (as opposed to static computations,
+which is the primary focus of <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span>)</li>
+<li>they allow <em>spawning</em> new dynamic work</li>
+<li>they allow detecting whether there is no enqueued dynamic work</li>
+<li>they allow cancelling the work that is already enqueued</li>
+<li>they allow structured handling of dynamic work</li>
+</ul>
+<p>Looking at the above points, one might say that they are designed for
+the same goal. However, the difference lies in the constraints imposed
+on the computations that are being enqueued to these abstractions, as
+shown by the following table:</p>
+<table>
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 35%" />
+<col style="width: 59%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th><div style="text-align:center">
+<strong>Abstraction</strong>
+</div></th>
+<th><div style="text-align:center">
+<strong>Maximum level of parallelism</strong>
+</div></th>
+<th><div style="text-align:center">
+<strong>Constraints description</strong>
+</div></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code class="sourceCode default">async_scope</code></td>
+<td>infinite</td>
+<td>no constraints are added to the enqueued computations</td>
+</tr>
+<tr class="even">
+<td><code class="sourceCode default">serializer</code></td>
+<td>1</td>
+<td>at most one computation can be executed at a given time</td>
+</tr>
+<tr class="odd">
+<td><code class="sourceCode default">n_serializer</code></td>
+<td><em>N</em></td>
+<td>at most <em>N</em> computations can be executed at a given time</td>
+</tr>
+<tr class="even">
+<td><code class="sourceCode default">rw_serializer</code></td>
+<td>infinite for <em>read</em> computations (in the absence of
+<em>write</em> computations); 1 for <em>write</em> computations</td>
+<td>this puts constraints between <em>write</em> computations and the
+rest of the computations enqueued; there are no constraints between
+<em>read</em> tasks in the absence of <em>write</em> tasks</td>
+</tr>
+</tbody>
+</table>
+<p>According to the above table, one can look at
+<code class="sourceCode default">async_scope</code> as a particular case
+of a serializer, in which no constraints are put on the computations
+that are enqueued. Actually, for all practical purposes,
+<code class="sourceCode default">async_scope</code> has the same
+semantics as an <code class="sourceCode default">n_serilizer</code>
+object constructed with the largest integer possible (if we assume we
+can never reach the limit of how many computations can be enqueued).</p>
+<p>Thus, serializers are an extension of
+<code class="sourceCode default">async_scope</code>.</p>
 <h2 data-number="7.4" id="comparison-with-libunifexs-async_mutex"><span class="header-section-number">7.4</span> Comparison with libunifex’s
 <code class="sourceCode default">async_mutex</code><a href="#comparison-with-libunifexs-async_mutex" class="self-link"></a></h2>
 <h1 data-number="8" id="specification"><span class="header-section-number">8</span> Specification<a href="#specification" class="self-link"></a></h1>
