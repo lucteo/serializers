@@ -220,6 +220,14 @@ auto spawn_enemies() {
 }
 ```
 
+
+## Pipeline
+
+## Safe destruction
+
+## Handling constraints generically
+
+
 Synopsis
 ========
 
@@ -435,6 +443,8 @@ Keeping the two abstractions in the same paper allows us to consider the enqueue
 ## `nest` as a basis for `spawn` and `spawn_future`
 
 ## Use of CPOs
+
+## Read/write priority policy
 
 
 Comparison with other models
