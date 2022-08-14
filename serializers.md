@@ -350,6 +350,8 @@ Design considerations
 
 ## A new abstraction
 
+*Note:* this section talks about the simple serializer, i.e., `serializer` class, but the argument extends to other serializer abstractions defined here.
+
 After agreeing that serializers are useful, one question that arise is whether we need a separate abstraction (i.e., class) for a serializer, or we can just use existing facilities.
 
 One idea was to use [@P2300R5] algorithms to simulate a serializer behaviour, maybe in conjunction with some helper class.
@@ -372,6 +374,34 @@ This can be used to model a simple serializer.
 The problem with this approach is that it requires the user to manually *lock* and *unlock* the mutex.
 This is considered unstructured and error-prone to be generally used.
 However, it is worth noting that a simple serializer can be implemented in terms of `async_mutex`.
+
+## Interface similar to `async_scope`
+
+*Note:* this section talks about the simple serializer, i.e., `serializer` class, but the argument extends to other serializer abstractions defined here.
+
+Designing the interface of a simple serializer can take several directions.
+We chose to follow the interface of `async_scope` ([@D2519R0]) for two reasons:
+
+* it provides the functionality that we need
+* consistency
+
+In terms of needed functionality, we need the following:
+
+* a method of adding work to the serializer
+	* this can be obtained with `spawn()`, `spawn_future()` and `nest()`
+* a method of querying the serializer whether it has work: `on_empty()`
+* allow cancellation
+
+Once we have `spawn()` as a way to add work to the serializer, one might wonder why do we need `spawn_future()` and `nest()`.
+We follow the same rationale as [@D2519R0] because the needs of enqueuing work are similar.
+
+Similar to `async_scope` we need to be able to detect whenever the serializer doesn't have work enqueued anymore.
+One reason for this is that we cannot destruct the serializer object while there is still work within it.
+
+And, the same way that `asynsc_scope` requires cancellation, we require cancellation support for serializers, for the same reasons.
+
+See also [Comparison with `async_scope`]
+
 
 Comparison with other models
 ============================
