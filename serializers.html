@@ -1009,7 +1009,29 @@ sub-objects<a href="#rw_serializer-with-two-sub-objects" class="self-link"></a><
 <h2 data-number="6.8" id="use-of-cpos"><span class="header-section-number">6.8</span> Use of CPOs<a href="#use-of-cpos" class="self-link"></a></h2>
 <h1 data-number="7" id="comparison-with-other-models"><span class="header-section-number">7</span> Comparison with other models<a href="#comparison-with-other-models" class="self-link"></a></h1>
 <h2 data-number="7.1" id="comparison-with-mutexes"><span class="header-section-number">7.1</span> Comparison with mutexes<a href="#comparison-with-mutexes" class="self-link"></a></h2>
+<p>TODO: equivalence</p>
+<p>TODO: performance benefits</p>
 <h2 data-number="7.2" id="comparison-with-p2300-model"><span class="header-section-number">7.2</span> Comparison with P2300 model<a href="#comparison-with-p2300-model" class="self-link"></a></h2>
+<p>We can make a distinction between static and dynamic computations.
+Static computations are a set of senders for which we know exactly their
+count, and the relations between them. That is, we have a fixed graph on
+how these senders interact, and the graph can be executed only once. One
+graph, one execution, a fixed set of computations – a predictable
+world.</p>
+<p>By contrast, dynamic computations are sets of senders for which the
+number of senders and the relations between them is not known upfront.
+Once we start executing some of the senders, we might decide that we
+need more work to be done, and create new senders.</p>
+<p><span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span> focuses on static computations.
+It does provide <code class="sourceCode default">start_detached</code>
+and <code class="sourceCode default">ensure_started</code> for starting
+dynamic computations, but those are not properly structured (<span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span> attempts to
+fix that). Thus, we can only start an arbitrary number of dynamic
+computations, but we don’t have any facility to add constraints between
+the computations we want to start.</p>
+<p>This paper provides facilities similar to
+<code class="sourceCode default">async_scope</code> that allows the user
+to add constraints when starting dynamic computations.</p>
 <h2 data-number="7.3" id="comparison-with-async_scope"><span class="header-section-number">7.3</span> Comparison with
 <code class="sourceCode default">async_scope</code><a href="#comparison-with-async_scope" class="self-link"></a></h2>
 <p>Serializers, have the following similarities to
