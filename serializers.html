@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="mpark/wg21" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <meta name="dcterms.date" content="2022-08-11" />
+  <meta name="dcterms.date" content="2022-08-14" />
   <title>serializers -- Adding constraints between dynamic
 computations</title>
   <style>
@@ -430,7 +430,7 @@ constraints between dynamic computations</h1>
   </tr>
   <tr>
     <td>Date:</td>
-    <td>2022-08-11</td>
+    <td>2022-08-14</td>
   </tr>
   <tr>
     <td style="vertical-align:top">Project:</td>
@@ -480,7 +480,11 @@ resource<span></span></a></li>
 </ul></li>
 <li><a href="#synopsis" id="toc-synopsis"><span class="toc-section-number">5</span> Synopsis<span></span></a></li>
 <li><a href="#design-considerations" id="toc-design-considerations"><span class="toc-section-number">6</span>
-Design considerations<span></span></a></li>
+Design considerations<span></span></a>
+<ul>
+<li><a href="#a-new-abstraction" id="toc-a-new-abstraction"><span class="toc-section-number">6.1</span> A new
+abstraction<span></span></a></li>
+</ul></li>
 <li><a href="#comparison-with-other-models" id="toc-comparison-with-other-models"><span class="toc-section-number">7</span> Comparison with other
 models<span></span></a>
 <ul>
@@ -652,12 +656,12 @@ parallel accesses<a href="#limiting-the-maximum-number-of-parallel-accesses" cla
 <p>Let’s assume that we have an application that tries to download
 multiple files on an embedded device with limited bandwidth. Although we
 can download multiple files in parallel, but because of the limited
-bandwidth, it may not be wort to download too many files at the same
+bandwidth, it may not be worth to download too many files at the same
 time. In addition to that, let’s assume that creating a connection is a
 complex process, and we want to limit the number of connections we
 created.</p>
 <p>Thus, we have a problem in which we have a limited number of
-connections we can use. In classic concurrent model, one can use a
+connections we can use. In the classic concurrent model, one can use a
 counting semaphore to limit the number of connections that can be used
 at a given time. With this paper, one can use an
 <code class="sourceCode default">n_serializer</code>:</p>
@@ -691,11 +695,11 @@ at a given time. With this paper, one can use an
 <h2 data-number="4.3" id="readwrite-access-to-a-resource"><span class="header-section-number">4.3</span> Read/write access to a
 resource<a href="#readwrite-access-to-a-resource" class="self-link"></a></h2>
 <p>Let’s assume we have a game for which we load data dynamically as the
-player explore the game world. Once the game data is loaded it is
+player explore the game world. Once the game data is loaded, it is
 immutable. We might have multiple parts of the game reading the game
 data at the same time without any safety issue, but we cannot write the
 game data in parallel with any reads (or other writes).</p>
-<p>In the classic concurrency model this would be solved with a
+<p>In the classic concurrency model, this would be solved with a
 read-write mutex (shared mutex). With this paper, we can use
 <code class="sourceCode default">rw_serializer</code> to apply the same
 idea to senders.</p>
@@ -851,6 +855,44 @@ proposed abstractions might look like:</p>
 <span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>    <span class="dt">void</span> request_stop<span class="op">()</span> <span class="kw">noexcept</span>;</span>
 <span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
 <h1 data-number="6" id="design-considerations"><span class="header-section-number">6</span> Design considerations<a href="#design-considerations" class="self-link"></a></h1>
+<h2 data-number="6.1" id="a-new-abstraction"><span class="header-section-number">6.1</span> A new abstraction<a href="#a-new-abstraction" class="self-link"></a></h2>
+<p>After agreeing that serializers are useful, one question that arise
+is whether we need a separate abstraction (i.e., class) for a
+serializer, or we can just use existing facilities.</p>
+<p>One idea was to use <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span> algorithms
+to simulate a serializer behaviour, maybe in conjunction with some
+helper class. In particular, the idea of using the
+<code class="sourceCode default">on()</code> algorithm with a custom
+scheduler was considered. However, there are two problems with this
+approach:</p>
+<ol type="1">
+<li>we can control only the starting point of a computation, and not
+necessarily the exit point</li>
+<li>conceptually, schedulers work if we want the work to be executed
+within a given context; we might want to use with serializers
+computations that involve using multiple execution contexts</li>
+</ol>
+<p>Let’s assume that we want to pass through a (simple) serializer a
+complex computation that does work across multiple execution contexts.
+The idea of the serializer is to ensure that no other computation is
+started in the serializer before the first computation is completed.
+And, as this computation involves going through multiple execution
+contexts, we cannot simply detect the termination point. Thus, point 1
+above prevents use to use <code class="sourceCode default">on()</code>
+and schedulers to implement serializers.</p>
+<p>Furthermore, looking from the perspective of the second point, if the
+computation is defined in terms of multiple schedulers, it is
+conceptually wrong to model the serializer as a scheduler. One cannot
+have a scheduler to execute work that needs to be executed on a series
+of other schedulers.</p>
+<p>Another idea that was considered is to use <span class="citation" data-cites="libunifex">[<a href="#ref-libunifex" role="doc-biblioref">libunifex</a>]</span>’s
+<code class="sourceCode default">async_mutex</code> abstraction. This
+can be used to model a simple serializer. The problem with this approach
+is that it requires the user to manually <em>lock</em> and
+<em>unlock</em> the mutex. This is considered unstructured and
+error-prone to be generally used. However, it is worth noting that a
+simple serializer can be implemented in terms of
+<code class="sourceCode default">async_mutex</code>.</p>
 <h1 data-number="7" id="comparison-with-other-models"><span class="header-section-number">7</span> Comparison with other models<a href="#comparison-with-other-models" class="self-link"></a></h1>
 <h2 data-number="7.1" id="comparison-with-mutexes"><span class="header-section-number">7.1</span> Comparison with mutexes<a href="#comparison-with-mutexes" class="self-link"></a></h2>
 <h2 data-number="7.2" id="comparison-with-p2300-model"><span class="header-section-number">7.2</span> Comparison with P2300 model<a href="#comparison-with-p2300-model" class="self-link"></a></h2>
@@ -868,6 +910,9 @@ proposed abstractions might look like:</p>
 [Dijkstra65] E. W. Dijkstra. 1965. <em>Solution of a problem in
 concurrent programming control</em>. Communications of the ACM,
 September 1965.
+</div>
+<div id="ref-libunifex" class="csl-entry" role="doc-biblioentry">
+[libunifex] Facebook. libunifex: Unified Executors. <a href="https://github.com/facebookexperimental/libunifex"><div class="csl-block">https://github.com/facebookexperimental/libunifex</div></a>
 </div>
 <div id="ref-P2300R5" class="csl-entry" role="doc-biblioentry">
 [P2300R5] Michał Dominiak, Georgy Evtushenko, Lewis Baker, Lucian Radu
