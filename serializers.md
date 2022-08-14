@@ -472,6 +472,22 @@ Thus, serializers are an extension of `async_scope`.
 
 ## Comparison with libunifex's `async_mutex`
 
+Mutual exclusion that is achieved by `serializer` can also be achieved with the help of `async_mutex` from [@libunifex].
+
+There are however fundamental differences between the two:
+
+* `serializer` provides a structured approach to mutual exclusion; `async_mutex` doesn't
+* `async_mutex` requires the user to manually enter and exit the critical section; this is error-prone
+* `async_mutex` is a low-level primitive for synchronization; `serializer` aims at being a high-level feature that helps in describing the relations between computations (the same way that one can describe relations between static computations with [@P2300R5])
+* `serializer` is consistent with `async_scope`, whereas `async_mutex` isn't
+* `serializer` allows cancelling work that is waiting in the queue for the resource to become free; `async_mutex` doesn't provide this mechanism
+
+For all these reasons, we believe that `serializer` is a superior abstraction.
+
+Please also note that `serializer` doesn't have an easy way to implement the `try_lock()` functionality of `async_mutex`.
+This is believed to be a minor inconvenience.
+
+
 Specification
 =============
 
