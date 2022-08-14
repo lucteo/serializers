@@ -1083,6 +1083,40 @@ can never reach the limit of how many computations can be enqueued).</p>
 <code class="sourceCode default">async_scope</code>.</p>
 <h2 data-number="7.4" id="comparison-with-libunifexs-async_mutex"><span class="header-section-number">7.4</span> Comparison with libunifex’s
 <code class="sourceCode default">async_mutex</code><a href="#comparison-with-libunifexs-async_mutex" class="self-link"></a></h2>
+<p>Mutual exclusion that is achieved by
+<code class="sourceCode default">serializer</code> can also be achieved
+with the help of <code class="sourceCode default">async_mutex</code>
+from <span class="citation" data-cites="libunifex">[<a href="#ref-libunifex" role="doc-biblioref">libunifex</a>]</span>.</p>
+<p>There are however fundamental differences between the two:</p>
+<ul>
+<li><code class="sourceCode default">serializer</code> provides a
+structured approach to mutual exclusion;
+<code class="sourceCode default">async_mutex</code> doesn’t</li>
+<li><code class="sourceCode default">async_mutex</code> requires the
+user to manually enter and exit the critical section; this is
+error-prone</li>
+<li><code class="sourceCode default">async_mutex</code> is a low-level
+primitive for synchronization;
+<code class="sourceCode default">serializer</code> aims at being a
+high-level feature that helps in describing the relations between
+computations (the same way that one can describe relations between
+static computations with <span class="citation" data-cites="P2300R5">[<a href="#ref-P2300R5" role="doc-biblioref">P2300R5</a>]</span>)</li>
+<li><code class="sourceCode default">serializer</code> is consistent
+with <code class="sourceCode default">async_scope</code>, whereas
+<code class="sourceCode default">async_mutex</code> isn’t</li>
+<li><code class="sourceCode default">serializer</code> allows cancelling
+work that is waiting in the queue for the resource to become free;
+<code class="sourceCode default">async_mutex</code> doesn’t provide this
+mechanism</li>
+</ul>
+<p>For all these reasons, we believe that
+<code class="sourceCode default">serializer</code> is a superior
+abstraction.</p>
+<p>Please also note that
+<code class="sourceCode default">serializer</code> doesn’t have an easy
+way to implement the <code class="sourceCode default">try_lock()</code>
+functionality of <code class="sourceCode default">async_mutex</code>.
+This is believed to be a minor inconvenience.</p>
 <h1 data-number="8" id="specification"><span class="header-section-number">8</span> Specification<a href="#specification" class="self-link"></a></h1>
 <h1 data-number="9" id="bibliography"><span class="header-section-number">9</span> References<a href="#bibliography" class="self-link"></a></h1>
 <div id="refs" class="references csl-bib-body hanging-indent" role="doc-bibliography">
