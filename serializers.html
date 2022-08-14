@@ -477,6 +477,11 @@ resource<span></span></a></li>
 parallel accesses<span></span></a></li>
 <li><a href="#readwrite-access-to-a-resource" id="toc-readwrite-access-to-a-resource"><span class="toc-section-number">4.3</span> Read/write access to a
 resource<span></span></a></li>
+<li><a href="#pipeline" id="toc-pipeline"><span class="toc-section-number">4.4</span> Pipeline<span></span></a></li>
+<li><a href="#safe-destruction" id="toc-safe-destruction"><span class="toc-section-number">4.5</span> Safe
+destruction<span></span></a></li>
+<li><a href="#handling-constraints-generically" id="toc-handling-constraints-generically"><span class="toc-section-number">4.6</span> Handling constraints
+generically<span></span></a></li>
 </ul></li>
 <li><a href="#synopsis" id="toc-synopsis"><span class="toc-section-number">5</span> Synopsis<span></span></a></li>
 <li><a href="#design-considerations" id="toc-design-considerations"><span class="toc-section-number">6</span>
@@ -502,6 +507,8 @@ classes<span></span></a></li>
 <code class="sourceCode default">spawn</code> and
 <code class="sourceCode default">spawn_future</code><span></span></a></li>
 <li><a href="#use-of-cpos" id="toc-use-of-cpos"><span class="toc-section-number">6.8</span> Use of CPOs<span></span></a></li>
+<li><a href="#readwrite-priority-policy" id="toc-readwrite-priority-policy"><span class="toc-section-number">6.9</span> Read/write priority
+policy<span></span></a></li>
 </ul></li>
 <li><a href="#comparison-with-other-models" id="toc-comparison-with-other-models"><span class="toc-section-number">7</span> Comparison with other
 models<span></span></a>
@@ -754,6 +761,10 @@ idea to senders.</p>
 <span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> spawn_enemies<span class="op">()</span> <span class="op">{</span></span>
 <span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>  <span class="co">// similar to render()</span></span>
 <span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 data-number="4.4" id="pipeline"><span class="header-section-number">4.4</span> Pipeline<a href="#pipeline" class="self-link"></a></h2>
+<h2 data-number="4.5" id="safe-destruction"><span class="header-section-number">4.5</span> Safe destruction<a href="#safe-destruction" class="self-link"></a></h2>
+<h2 data-number="4.6" id="handling-constraints-generically"><span class="header-section-number">4.6</span> Handling constraints
+generically<a href="#handling-constraints-generically" class="self-link"></a></h2>
 <h1 data-number="5" id="synopsis"><span class="header-section-number">5</span> Synopsis<a href="#synopsis" class="self-link"></a></h1>
 <p>Depending on the outcome of <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>, the 3
 proposed abstractions might look like:</p>
@@ -1007,6 +1018,7 @@ sub-objects<a href="#rw_serializer-with-two-sub-objects" class="self-link"></a><
 <code class="sourceCode default">spawn</code> and
 <code class="sourceCode default">spawn_future</code><a href="#nest-as-a-basis-for-spawn-and-spawn_future" class="self-link"></a></h2>
 <h2 data-number="6.8" id="use-of-cpos"><span class="header-section-number">6.8</span> Use of CPOs<a href="#use-of-cpos" class="self-link"></a></h2>
+<h2 data-number="6.9" id="readwrite-priority-policy"><span class="header-section-number">6.9</span> Read/write priority policy<a href="#readwrite-priority-policy" class="self-link"></a></h2>
 <h1 data-number="7" id="comparison-with-other-models"><span class="header-section-number">7</span> Comparison with other models<a href="#comparison-with-other-models" class="self-link"></a></h1>
 <h2 data-number="7.1" id="comparison-with-mutexes"><span class="header-section-number">7.1</span> Comparison with mutexes<a href="#comparison-with-mutexes" class="self-link"></a></h2>
 <p>TODO: equivalence</p>
