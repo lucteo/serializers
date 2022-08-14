@@ -484,6 +484,8 @@ Design considerations<span></span></a>
 <ul>
 <li><a href="#a-new-abstraction" id="toc-a-new-abstraction"><span class="toc-section-number">6.1</span> A new
 abstraction<span></span></a></li>
+<li><a href="#interface-similar-to-async_scope" id="toc-interface-similar-to-async_scope"><span class="toc-section-number">6.2</span> Interface similar to
+<code class="sourceCode default">async_scope</code><span></span></a></li>
 </ul></li>
 <li><a href="#comparison-with-other-models" id="toc-comparison-with-other-models"><span class="toc-section-number">7</span> Comparison with other
 models<span></span></a>
@@ -856,6 +858,9 @@ proposed abstractions might look like:</p>
 <span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>;</span></code></pre></div>
 <h1 data-number="6" id="design-considerations"><span class="header-section-number">6</span> Design considerations<a href="#design-considerations" class="self-link"></a></h1>
 <h2 data-number="6.1" id="a-new-abstraction"><span class="header-section-number">6.1</span> A new abstraction<a href="#a-new-abstraction" class="self-link"></a></h2>
+<p><em>Note:</em> this section talks about the simple serializer, i.e.,
+<code class="sourceCode default">serializer</code> class, but the
+argument extends to other serializer abstractions defined here.</p>
 <p>After agreeing that serializers are useful, one question that arise
 is whether we need a separate abstraction (i.e., class) for a
 serializer, or we can just use existing facilities.</p>
@@ -893,6 +898,48 @@ is that it requires the user to manually <em>lock</em> and
 error-prone to be generally used. However, it is worth noting that a
 simple serializer can be implemented in terms of
 <code class="sourceCode default">async_mutex</code>.</p>
+<h2 data-number="6.2" id="interface-similar-to-async_scope"><span class="header-section-number">6.2</span> Interface similar to
+<code class="sourceCode default">async_scope</code><a href="#interface-similar-to-async_scope" class="self-link"></a></h2>
+<p><em>Note:</em> this section talks about the simple serializer, i.e.,
+<code class="sourceCode default">serializer</code> class, but the
+argument extends to other serializer abstractions defined here.</p>
+<p>Designing the interface of a simple serializer can take several
+directions. We chose to follow the interface of
+<code class="sourceCode default">async_scope</code> (<span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span>) for two
+reasons:</p>
+<ul>
+<li>it provides the functionality that we need</li>
+<li>consistency</li>
+</ul>
+<p>In terms of needed functionality, we need the following:</p>
+<ul>
+<li>a method of adding work to the serializer
+<ul>
+<li>this can be obtained with
+<code class="sourceCode default">spawn()</code>,
+<code class="sourceCode default">spawn_future()</code> and
+<code class="sourceCode default">nest()</code></li>
+</ul></li>
+<li>a method of querying the serializer whether it has work:
+<code class="sourceCode default">on_empty()</code></li>
+<li>allow cancellation</li>
+</ul>
+<p>Once we have <code class="sourceCode default">spawn()</code> as a way
+to add work to the serializer, one might wonder why do we need
+<code class="sourceCode default">spawn_future()</code> and
+<code class="sourceCode default">nest()</code>. We follow the same
+rationale as <span class="citation" data-cites="D2519R0">[<a href="#ref-D2519R0" role="doc-biblioref"><strong>D2519R0?</strong></a>]</span> because the
+needs of enqueuing work are similar.</p>
+<p>Similar to <code class="sourceCode default">async_scope</code> we
+need to be able to detect whenever the serializer doesn’t have work
+enqueued anymore. One reason for this is that we cannot destruct the
+serializer object while there is still work within it.</p>
+<p>And, the same way that
+<code class="sourceCode default">asynsc_scope</code> requires
+cancellation, we require cancellation support for serializers, for the
+same reasons.</p>
+<p>See also <a href="#comparison-with-async_scope">Comparison with
+<code class="sourceCode default">async_scope</code></a></p>
 <h1 data-number="7" id="comparison-with-other-models"><span class="header-section-number">7</span> Comparison with other models<a href="#comparison-with-other-models" class="self-link"></a></h1>
 <h2 data-number="7.1" id="comparison-with-mutexes"><span class="header-section-number">7.1</span> Comparison with mutexes<a href="#comparison-with-mutexes" class="self-link"></a></h2>
 <h2 data-number="7.2" id="comparison-with-p2300-model"><span class="header-section-number">7.2</span> Comparison with P2300 model<a href="#comparison-with-p2300-model" class="self-link"></a></h2>
