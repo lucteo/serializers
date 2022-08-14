@@ -137,11 +137,11 @@ void trigger_save(game_state state) {
 ## Limiting the maximum number of parallel accesses
 
 Let's assume that we have an application that tries to download multiple files on an embedded device with limited bandwidth.
-Although we can download multiple files in parallel, but because of the limited bandwidth, it may not be wort to download too many files at the same time.
+Although we can download multiple files in parallel, but because of the limited bandwidth, it may not be worth to download too many files at the same time.
 In addition to that, let's assume that creating a connection is a complex process, and we want to limit the number of connections we created.
 
 Thus, we have a problem in which we have a limited number of connections we can use.
-In classic concurrent model, one can use a counting semaphore to limit the number of connections that can be used at a given time.
+In the classic concurrent model, one can use a counting semaphore to limit the number of connections that can be used at a given time.
 With this paper, one can use an `n_serializer`:
 
 ```c++
@@ -178,10 +178,10 @@ auto download(url_t url) {
 ## Read/write access to a resource
 
 Let's assume we have a game for which we load data dynamically as the player explore the game world.
-Once the game data is loaded it is immutable.
+Once the game data is loaded, it is immutable.
 We might have multiple parts of the game reading the game data at the same time without any safety issue, but we cannot write the game data in parallel with any reads (or other writes).
 
-In the classic concurrency model this would be solved with a read-write mutex (shared mutex).
+In the classic concurrency model, this would be solved with a read-write mutex (shared mutex).
 With this paper, we can use `rw_serializer` to apply the same idea to senders.
 
 ```c++
@@ -348,6 +348,31 @@ struct rw_serializer {
 Design considerations
 =====================
 
+## A new abstraction
+
+After agreeing that serializers are useful, one question that arise is whether we need a separate abstraction (i.e., class) for a serializer, or we can just use existing facilities.
+
+One idea was to use [@P2300R5] algorithms to simulate a serializer behaviour, maybe in conjunction with some helper class.
+In particular, the idea of using the `on()` algorithm with a custom scheduler was considered.
+However, there are two problems with this approach:
+
+1. we can control only the starting point of a computation, and not necessarily the exit point
+2. conceptually, schedulers work if we want the work to be executed within a given context; we might want to use with serializers computations that involve using multiple execution contexts
+
+Let's assume that we want to pass through a (simple) serializer a complex computation that does work across multiple execution contexts.
+The idea of the serializer is to ensure that no other computation is started in the serializer before the first computation is completed.
+And, as this computation involves going through multiple execution contexts, we cannot simply detect the termination point.
+Thus, point 1 above prevents use to use `on()` and schedulers to implement serializers.
+
+Furthermore, looking from the perspective of the second point, if the computation is defined in terms of multiple schedulers, it is conceptually wrong to model the serializer as a scheduler.
+One cannot have a scheduler to execute work that needs to be executed on a series of other schedulers.
+
+Another idea that was considered is to use [@libunifex]'s `async_mutex` abstraction.
+This can be used to model a simple serializer.
+The problem with this approach is that it requires the user to manually *lock* and *unlock* the mutex.
+This is considered unstructured and error-prone to be generally used.
+However, it is worth noting that a simple serializer can be implemented in terms of `async_mutex`.
+
 Comparison with other models
 ============================
 
@@ -382,4 +407,10 @@ references:
       - family: Tomazos
         given: Andrew
     url: https://codesearch.isocpp.org
+  - id: libunifex
+    citation-label: libunifex
+    title: "libunifex: Unified Executors"
+    author:
+      - family: Facebook
+    url: https://github.com/facebookexperimental/libunifex
 ---
