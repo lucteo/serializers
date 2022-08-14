@@ -442,7 +442,29 @@ Comparison with other models
 
 ## Comparison with mutexes
 
+TODO: equivalence
+
+TODO: performance benefits
+
+
 ## Comparison with P2300 model
+
+We can make a distinction between static and dynamic computations.
+Static computations are a set of senders for which we know exactly their count, and the relations between them.
+That is, we have a fixed graph on how these senders interact, and the graph can be executed only once.
+One graph, one execution, a fixed set of computations -- a predictable world.
+
+By contrast, dynamic computations are sets of senders for which the number of senders and the relations between them is not known upfront.
+Once we start executing some of the senders, we might decide that we need more work to be done, and create new senders.
+
+
+[@P2300R5] focuses on static computations.
+It does provide `start_detached` and `ensure_started` for starting dynamic computations, but those are not properly structured ([@D2519R0] attempts to fix that).
+Thus, we can only start an arbitrary number of dynamic computations, but we don't have any facility to add constraints between the computations we want to start.
+
+This paper provides facilities similar to `async_scope` that allows the user to add constraints when starting dynamic computations.
+
+
 
 ## Comparison with `async_scope`
 
